@@ -1,0 +1,42 @@
+name: Build AlShihab APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android
+        uses: android-actions/setup-android@v3
+
+      - name: Extract project
+        run: |
+          mkdir project
+          unzip -q AlShihab-Stage4-Final.zip -d project
+          echo "ROOT=$(find project -type f -name gradlew -exec dirname {} \; | head -1)" >> $GITHUB_ENV
+
+      - name: Build APK
+        working-directory: ${{ env.ROOT }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AlShihab-APK
+          path: '**/app/build/outputs/apk/debug/*.apk'
