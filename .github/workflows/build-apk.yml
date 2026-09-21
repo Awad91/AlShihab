@@ -26,17 +26,16 @@ jobs:
       - name: Extract project
         run: |
           rm -rf project
-          mkdir project
+          mkdir -p project
+
           unzip -q AlShihab-Stage4-Final.zip -d project
 
-          echo "=== Searching for Android project ==="
-          find project -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) -print
-
-          ROOT=$(find project -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) -print -quit | xargs -r dirname)
+          ROOT=$(find project -type f \( -name 'settings.gradle' -o -name 'settings.gradle.kts' \) -print -quit | xargs -r dirname)
 
           if [ -z "$ROOT" ]; then
             echo "ERROR: Android Gradle project was not found."
-            find project -maxdepth 5 -type f | sort
+            echo "Files found inside the ZIP:"
+            find project -maxdepth 6 -type f | sort
             exit 1
           fi
 
@@ -48,13 +47,25 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
+      - name: Fix Java Kotlin JVM target
+        run: |
+          cat > "$RUNNER_TEMP/fix-jvm.gradle" <<'EOF'
+          allprojects {
+              tasks.withType(JavaCompile).configureEach {
+                  sourceCompatibility = '17'
+                  targetCompatibility = '17'
+              }
+          }
+          EOF
+
       - name: Build APK
         working-directory: ${{ env.ROOT }}
         run: |
-          gradle assembleDebug --stacktrace
+          gradle -I "$RUNNER_TEMP/fix-jvm.gradle" assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: AlShihab-APK
           path: '**/app/build/outputs/apk/debug/*.apk'
+          if-no-files-found: error
